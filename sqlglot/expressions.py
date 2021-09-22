@@ -121,6 +121,7 @@ class Create(Expression):
         'character_set': False,
         'collate': False,
         'comment': False,
+        'delta_location': False,
     }
 
 
@@ -153,6 +154,11 @@ class ColumnDef(Expression):
     }
 
 
+class DeltaLocation(Expression):
+    token_type = TokenType.DELTA
+    arg_types = {'this': True}
+
+
 class Drop(Expression):
     token_type = TokenType.DROP
     arg_types = {'this': False, 'kind': False, 'exists': False}
@@ -180,6 +186,11 @@ class Insert(Expression):
     arg_types = {'this': True, 'expression': True, 'overwrite': False, 'exists': False}
 
 
+class HiveNotMatchedInsert(Expression):
+    token_type = TokenType.INSERT
+    arg_types = {'this': True, 'values': False}
+
+
 class Group(Expression):
     token_type = TokenType.GROUP
     arg_types = {'expressions': True}
@@ -198,6 +209,10 @@ class Lateral(Expression):
     token_type = TokenType.LATERAL
     arg_types = {'this': True, 'outer': False, 'table': False, 'columns': False}
 
+
+class Merge(Expression):
+    token_type = TokenType.MERGE
+    arg_types = {'this': True, 'using': True, 'condition': True, 'matched_update': False, 'not_matched_update': False}
 
 class Order(Expression):
     token_type = TokenType.ORDER
@@ -440,6 +455,9 @@ class Interval(Expression):
     token_type = TokenType.IN
     arg_types = {'this': True, 'unit': True}
 
+class Using(Expression):
+    token_type = TokenType.USING
+    arg_types = {'this': True, 'alias': True}
 
 # Functions
 class Func(Expression):

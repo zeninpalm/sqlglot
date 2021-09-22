@@ -255,6 +255,9 @@ class Parser:
         if self._match(TokenType.INSERT):
             return self._parse_insert()
 
+        if self._match(TokenType.MERGE):
+            return self._parse_merge()
+
         if self._match(TokenType.UPDATE):
             return self._parse_update()
 
@@ -299,11 +302,14 @@ class Parser:
         this = self._parse_table(None, schema=True)
         expression = None
         file_format = None
+        delta_location = None
 
         if create_token.token_type == TokenType.TABLE:
             if self._match(TokenType.STORED):
                 self._match(TokenType.ALIAS)
                 file_format = exp.FileFormat(this=self._parse_id_var())
+            elif self._match(TokenType.USING) and self._match(TokenType.DELTA) and self._match(TokenType.LOCATION):
+                delta_location = exp.DeltaLocation(this=self._parse_location())
             elif self._match(TokenType.WITH):
                 self._match(TokenType.L_PAREN)
                 self._match(TokenType.FORMAT)
@@ -356,6 +362,7 @@ class Parser:
             file_format=file_format,
             temporary=temporary,
             replace=replace,
+            delta_location=delta_location,
             **options,
         )
 
@@ -371,12 +378,68 @@ class Parser:
             overwrite=overwrite,
         )
 
-    def _parse_update(self):
+    def _parse_merge(self):
+        self._match(TokenType.INTO)
+        this = self._parse_table(None)
+
+        self._match(TokenType.USING)
+        using = self._parse_using()
+
+        self._match(TokenType.ON)
+        condition = self._parse_expression()
+
+
+        matched_update = None
+        if self._match(TokenType.WHEN) and self._match(TokenType.MATCHED) and self._match(TokenType.THEN):
+            self._match(TokenType.UPDATE)
+            matched_update = self._parse_update(parse_table=False)
+
+        not_matched_update = None
+        if self._match(TokenType.WHEN):
+            if self._match(TokenType.NOT) and self._match(TokenType.MATCHED) and self._match(TokenType.THEN):
+                self._match(TokenType.INSERT)
+                not_matched_update = self._parse_hive_insert()
+        elif self._match(TokenType.NOT) and self._match(TokenType.MATCHED) and self._match(TokenType.THEN):
+                self._match(TokenType.INSERT)
+                not_matched_update = self._parse_hive_insert()
+
+        return exp.Merge(
+            this=this,
+            using=using,
+            condition=condition,
+            matched_update=matched_update,
+            not_matched_update=not_matched_update,
+        )
+
+    def _parse_update(self, parse_table=True):
         return exp.Update(
-            this=self._parse_table(None),
+            this=self._parse_table(None) if parse_table else None,
             expressions=self._match(TokenType.SET) and self._parse_csv(self._parse_equality),
             where=self._parse_where(),
         )
+
+    def _parse_hive_insert(self):
+        if self._match(TokenType.STAR):
+            return exp.HiveNotMatchedInsert(
+                this='*'
+            )
+
+        this = self._parse_value()
+        self._match(TokenType.VALUES)
+        values = self._parse_value()
+        return exp.HiveNotMatchedInsert(
+            this=this,
+            values=values
+        )
+
+
+    def _parse_using(self):
+        self._match(TokenType.VAR)
+        this = self._curr.text
+
+        self._match(TokenType.VAR)
+        alias = self._curr.text
+        return exp.Using(this=this, alias=alias)
 
     def _parse_values(self):
         if not self._match(TokenType.VALUES):
@@ -509,13 +572,19 @@ class Parser:
                 self.raise_error('Expecting )')
         else:
             db = None
-            table = self._parse_function(self._match(TokenType.VAR, TokenType.IDENTIFIER), schema=schema)
+            if self._match(TokenType.DELTA):
+                self._match(TokenType.DOT)
+                self._match(TokenType.VAR)
+                table = self._match(TokenType.IDENTIFIER)
+                alias = self._match(TokenType.VAR)
+            else:
+                table = self._parse_function(self._match(TokenType.VAR, TokenType.IDENTIFIER), schema=schema)
 
-            if self._match(TokenType.DOT):
-                db = table
-                if not self._match(TokenType.VAR, TokenType.IDENTIFIER):
-                    self.raise_error('Expected table name')
-                table = self._prev
+                if self._match(TokenType.DOT):
+                    db = table
+                    if not self._match(TokenType.VAR, TokenType.IDENTIFIER):
+                        self.raise_error('Expected table name')
+                    table = self._prev
 
             expression = exp.Table(this=table, db=db)
 
@@ -933,6 +1002,12 @@ class Parser:
 
     def _parse_id_var(self):
         return self._match(*self.ID_VAR_TOKENS)
+
+    def _parse_location(self):
+        location = self._match(TokenType.STRING)
+        if not location:
+            return None
+        return location
 
     def _parse_csv(self, parse):
         items = [parse()]

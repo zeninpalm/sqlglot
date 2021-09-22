@@ -158,6 +158,12 @@ class TokenType(AutoName):
     WITHOUT = auto()
     ZONE = auto()
 
+    DELTA = auto()
+    USING = auto()
+    LOCATION = auto()
+    MERGE = auto()
+    MATCHED = auto()
+
 
 class Token:
     @classmethod
@@ -314,6 +320,12 @@ class Tokenizer:
         'WITH': TokenType.WITH,
         'WITHOUT': TokenType.WITHOUT,
         'ZONE': TokenType.ZONE,
+
+        'DELTA': TokenType.DELTA,
+        'USING': TokenType.USING,
+        'LOCATION': TokenType.LOCATION,
+        'MERGE': TokenType.MERGE,
+        'MATCHED': TokenType.MATCHED,
 
         'ARRAY': TokenType.ARRAY,
         'BOOL': TokenType.BOOLEAN,
