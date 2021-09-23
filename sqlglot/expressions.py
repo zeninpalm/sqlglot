@@ -224,6 +224,11 @@ class Ordered(Expression):
     arg_types = {'this': True, 'desc': False}
 
 
+class Set(Expression):
+    token_type = TokenType.SET
+    arg_types = {'expression': True}
+
+
 class Table(Expression):
     token_type = TokenType.TABLE
     arg_types = {'this': True, 'db': False}

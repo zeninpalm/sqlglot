@@ -258,6 +258,9 @@ class Parser:
         if self._match(TokenType.MERGE):
             return self._parse_merge()
 
+        if self._match(TokenType.SET):
+            return self._parse_set()
+
         if self._match(TokenType.UPDATE):
             return self._parse_update()
 
@@ -416,6 +419,11 @@ class Parser:
             this=self._parse_table(None) if parse_table else None,
             expressions=self._match(TokenType.SET) and self._parse_csv(self._parse_equality),
             where=self._parse_where(),
+        )
+
+    def _parse_set(self):
+        return exp.Set(
+            expression=self._parse_equality()
         )
 
     def _parse_hive_insert(self):
