@@ -1,4 +1,5 @@
 import logging
+import textwrap
 
 import sqlglot.expressions as exp
 from sqlglot.errors import ErrorLevel, UnsupportedError
@@ -246,6 +247,16 @@ class Generator:
         exists = ' IF EXISTS ' if expression.args.get('exists') else ' '
         expression_sql = self.sql(expression, 'expression')
         return f"INSERT {kind} TABLE {this}{exists}{expression_sql}"
+
+    def hivenotmatchedinsert_sql(self, expression):
+        this = expression.args['this']
+
+        if isinstance(this, str):
+            return f'INSERT {this}'
+        else:
+            this = this.sql()
+            values = expression.args['values'].sql()
+            return f'INSERT {this} VALUES {values}'
 
     def table_sql(self, expression):
         return '.'.join(part for part in [
@@ -533,6 +544,31 @@ class Generator:
 
     def star_sql(self, expression):
         return self.binary(expression, '*')
+
+    def merge_sql(self, expression):
+        delta_location = expression.args['this'].args['this'].args['this'].text
+        delta_alias = expression.args['this'].args['alias'].text
+
+        using = expression.args['using'].args['this']
+        using_alias = expression.args['using'].args['alias']
+
+        on_expression = expression.args['condition'].sql()
+        matched_update = expression.args['matched_update']
+        matched_update_sql = ''
+        if matched_update:
+            matched_update_sql = matched_update.sql()
+
+        not_matched_update = expression.args['not_matched_update']
+        not_matched_update_sql = ''
+        if not_matched_update:
+            not_matched_update_sql = not_matched_update.sql()
+
+        sql = f"MERGE INTO delta.`{delta_location}` {delta_alias} USING {using} {using_alias} ON {on_expression}"
+        if matched_update_sql:
+            sql += f" WHEN MATCHED THEN {matched_update_sql}"
+        if not_matched_update_sql:
+            sql += f" WHEN NOT MATCHED THEN {not_matched_update_sql}"
+        return sql
 
     def binary(self, expression, op, newline=False):
         sep = '\n' if newline else ' '

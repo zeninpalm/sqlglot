@@ -69,7 +69,6 @@ class Expression:
                     for node in nodes:
                         queue.append((node, item, k))
 
-
     def validate(self):
         for k, v in self.args.items():
             if k not in self.arg_types:

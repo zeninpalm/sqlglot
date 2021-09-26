@@ -391,7 +391,6 @@ class Parser:
         self._match(TokenType.ON)
         condition = self._parse_expression()
 
-
         matched_update = None
         if self._match(TokenType.WHEN) and self._match(TokenType.MATCHED) and self._match(TokenType.THEN):
             self._match(TokenType.UPDATE)
@@ -440,13 +439,11 @@ class Parser:
             values=values
         )
 
-
     def _parse_using(self):
-        self._match(TokenType.VAR)
         this = self._curr.text
-
         self._match(TokenType.VAR)
         alias = self._curr.text
+        self._match(TokenType.VAR)
         return exp.Using(this=this, alias=alias)
 
     def _parse_values(self):
